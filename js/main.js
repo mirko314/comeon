@@ -134,7 +134,7 @@ function addDestination(destination, userid) {
 }
 function getDestinations() {
   var counter = 0;
-  $.postJSON( "https://api.graph.cool/simple/v1/ciw93mn3u12ag0171fuupvn01", '{"query":"query {allUsers {id name destination}}"}', function (data) {
+  $.postJSON( "https://api.graph.cool/simple/v1/ciw93mn3u12ag0171fuupvn01", '{"query":"query {allUsers {id url name destination}}"}', function (data) {
     console.log(data.data.allUsers)
     $(".people-list").empty();
     data.data.allUsers.forEach(function (user) {
@@ -145,7 +145,7 @@ function getDestinations() {
           <label class="custom-control custom-checkbox">
             <input type="checkbox" class="custom-control-input">
             <span class="custom-control-indicator"></span>
-            <span class="custom-control-description">${user.name}</span>
+            <span class="custom-control-description"><a href="${user.url}">${user.name}</a></span>
           </label>
           `)
       }

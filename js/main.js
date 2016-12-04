@@ -1,9 +1,19 @@
-
 var map;
+var friends = [];
+var location;
+var friendsInRadius = [];
+var updateTimer;
 
-function getLocation() {
+var ownLocation = "";
+const radius = 2;
+var userid = findGetParameter("userid")
+function getLocation(callback) {
     if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(showPosition, showError);
+        navigator.geolocation.getCurrentPosition(function (pos) {
+          showPosition(pos);
+          callback();
+        }, showError);
+
     } else {
         x.innerHTML = "Geolocation is not supported by this browser.";
     }
@@ -12,25 +22,35 @@ function getLocation() {
 function showPosition(position) {
     lat = position.coords.latitude;
     lon = position.coords.longitude;
+    location.lat = position.coords.latitude;
+    location.lon = position.coords.longitude
     latlon = new google.maps.LatLng(lat, lon)
     mapholder = document.getElementById('mapholder')
-    console.log($(window.top).height() - $(".user-input").height());
-    mapholder.style.height = $(window.top).height() - $(".user-input").height() + "px"
+    //console.log($(window.top).height() - $(".user-input").height());
+    mapholder.style.height = $(window.top).height() - $(".top-part").height() + "px"
     mapholder.style.width =  $(document).width()
 
     var myOptions = {
-    center:latlon,zoom:14,
+    center:latlon,
+    zoom:12,
     mapTypeId:google.maps.MapTypeId.ROADMAP,
     mapTypeControl:false,
     navigationControlOptions:{style:google.maps.NavigationControlStyle.SMALL}
     }
 
-    var map = new google.maps.Map(document.getElementById("mapholder"), myOptions);
-    var marker = new google.maps.Marker({position:latlon,map:map,title:"You are here!"});
+    map = new google.maps.Map(document.getElementById("mapholder"), myOptions);
+    var OwnMarker = new google.maps.Marker({position:latlon,map:map,title:"You are here!"});
+
+    var circle = new google.maps.Circle({
+      map: map,
+      radius: radius*1000,    // 10 miles in metres
+      fillColor: '#AA0000'
+    });
+    circle.bindTo('center', OwnMarker, 'position');
 }
 function makeMarker(lat, lon){
 
-  var marker = new google.maps.Marker({position:{lat: lat, lng: lon},map:map,title:"You are here!"});
+  new google.maps.Marker({position:{lat: lat, lng: lon},map:map,title:"You are here!"});
 }
 function showError(error) {
     switch(error.code) {
@@ -48,7 +68,23 @@ function showError(error) {
             break;
     }
 }
+function getDistanceFromLatLonInKm(lat1,lon1,lat2,lon2) {
+  var R = 6371; // Radius of the earth in km
+  var dLat = deg2rad(lat2-lat1);  // deg2rad below
+  var dLon = deg2rad(lon2-lon1);
+  var a =
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+    Math.sin(dLon/2) * Math.sin(dLon/2)
+    ;
+  var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  var d = R * c; // Distance in km
+  return d;
+}
 
+function deg2rad(deg) {
+  return deg * (Math.PI/180)
+}
 
 $.postJSON = function(url, data, callback) {
     return jQuery.ajax({
@@ -60,25 +96,111 @@ $.postJSON = function(url, data, callback) {
         'success': callback
     });
 };
+function UserIsInFriends(id){
+  var found = false
+  friendsInRadius.forEach(function (friend) {
+    if(friend.id ==  id)
+      found = true;
+  })
+  return found;
+}
+function updateFriendCount(count){
+  if (count === 0)
+    $("#friends").text("No People nearby 😟")
+  else if( count === 1)
+    $("#friends").text("One Person nearby 😉")
+  else
+    $("#friends").text(count + " People nearby 😮")
+}
+function findGetParameter(parameterName) {
+    var result = null,
+        tmp = [];
+    location.search
+    .substr(1)
+        .split("&")
+        .forEach(function (item) {
+        tmp = item.split("=");
+        if (tmp[0] === parameterName) result = decodeURIComponent(tmp[1]);
+    });
+    return result;
+}
+function addDestination(destination, userid) {
+  $.postJSON( "https://api.graph.cool/simple/v1/ciw93mn3u12ag0171fuupvn01", 'mutation{createDestination(name:"'+destination+'", userId:"'+userid+'" ) {id}}', function (data) {
 
+  })
+}
+function getDestinations() {
+  $.postJSON( "https://api.graph.cool/simple/v1/ciw93mn3u12ag0171fuupvn01", '{"query":"query {allUsers {id name destination{  name}}}"}', function (data) {
+    console.log(data)
+    $(".people-list").empty();
+    data.data.allUsers.forEach(function (user) {
+      console.log(user.destination.name, ownLocation)
+      if(user.destination != null && user.destination.name == ownLocation && UserIsInFriends(user.id) ){
+        console.log(user.name + " is going to " + user.destination.name)
+        $(".people-list").append(`
+          <label class="custom-control custom-checkbox">
+            <input type="checkbox" class="custom-control-input">
+            <span class="custom-control-indicator"></span>
+            <span class="custom-control-description">${user.name}</span>
+          </label>
+          `)
+      }
+    })
+  })
+}
+function sendPing(userid, recipient){
+  $.postJSON( "https://api.graph.cool/simple/v1/ciw93mn3u12ag0171fuupvn01", 'mutation {createPing(message:"Hi! lets meet",sender:"'+userid+'", recipient:"'+recipient+'"){id}}', function (data) {
+  })
+}
+function getPing(userid) {
+  $.postJSON( "https://api.graph.cool/simple/v1/ciw93mn3u12ag0171fuupvn01", `{"query": "query {allPings(filter: {recipient:'${userid}'}) {id message sender}}"}`  , function (data) {
+
+      data.allPings.forEach(function (ping) {
+        alert(ping.message)
+      })
+  })
+
+}
 function getLocationData(){
   $.postJSON( "https://api.graph.cool/simple/v1/ciw93mn3u12ag0171fuupvn01", '{"query":"query {allUsers {id positions {  lat lon}}}"}', function (data) {
-    console.log(data.data)
-    var users = data.data.allUsers;
-    users.map(function (element) {
-      makeMarker(element.positions[0].lat, element.positions[0].lon)
-    })
 
+    var users = data.data.allUsers;
+    console.log(users)
+    friends = []
+    users.forEach(function(element) {
+      console.log(element);
+      friends.push(element)
+      console.log({lat: element.positions[0].lat, lng: element.positions[0].lon});
+      new google.maps.Marker({
+        position:
+          {lat: element.positions[0].lat, lng: element.positions[0].lon},
+        map: map,
+        title: "You are here!"
+      });
+      //makeMarker(element.positions[0].lat, element.positions[0].lon)
+    })
+    friendsInRadius = users.filter(function (element) {
+      return getDistanceFromLatLonInKm(element.positions[0].lat, element.positions[0].lon, location.lat, location.lon) < radius
+
+    })
+    updateFriendCount(friendsInRadius.length)
+    updateTimer = setInterval(getDestinations, 3000)
   } );
 
   //ttps://api.graph.cool/simple/v1/ciw93mn3u12ag0171fuupvn01' -H 'content-type: application/json' --data-binary '{"query":"query {allUsers {id name}}"}' --compressed
 }
 $( document ).ready(function() {
-  getLocation();
-  getLocationData();
-
+  getLocation(getLocationData);
+  getPing(userid);
   var service = new google.maps.places.AutocompleteService();
   var geocoder = new google.maps.Geocoder();
+
+
+  $("#ridesubmit").click(function () {
+    ownLocation = $("#DestinationInput").text();
+    addDestination(ownLocation, userid)
+    getDestinations();
+  });
 
   $("#DestinationInput").typeahead({
     source: function(query, process) {
@@ -96,8 +218,8 @@ $( document ).ready(function() {
           alert('Cannot find address');
           return;
         }
-        map.setCenter(results[0].geometry.location);
-        map.setZoom(12);
+        //map.setCenter(results[0].geometry.location);
+        //map.setZoom(12);
       });
       return item;
     }

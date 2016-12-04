@@ -13,7 +13,7 @@ function getLocation(callback) {
           showPosition(pos);
           callback();
         }, showError);
-        
+
     } else {
         x.innerHTML = "Geolocation is not supported by this browser.";
     }
@@ -47,6 +47,9 @@ function showPosition(position) {
       fillColor: '#AA0000'
     });
     circle.bindTo('center', OwnMarker, 'position');
+
+    $.postJSON( "https://api.graph.cool/simple/v1/ciw93mn3u12ag0171fuupvn01", `{"query": "mutation b {createPosition(userId :\\"${userid}\\", lat:${lat}, lon:${lon}) {id}}"}`, function (data) {
+    })
 }
 function makeMarker(lat, lon){
 
@@ -106,11 +109,11 @@ function UserIsInFriends(id){
 }
 function updateFriendCount(count){
   if (count === 0)
-    $("#friends").text("No People nearby 😟")
+    $("#friends").text("Nobody nearby 😟")
   else if( count === 1)
-    $("#friends").text("One Person nearby 😉")
+    $("#friends").text("One person nearby 😉")
   else
-    $("#friends").text(count + " People nearby 😮")
+    $("#friends").text(count + " people nearby 😮")
 }
 function findGetParameter(parameterName) {
     var result = null,
@@ -125,18 +128,19 @@ function findGetParameter(parameterName) {
     return result;
 }
 function addDestination(destination, userid) {
-  $.postJSON( "https://api.graph.cool/simple/v1/ciw93mn3u12ag0171fuupvn01", 'mutation{createDestination(name:"'+destination+'", userId:"'+userid+'" ) {id}}', function (data) {
-
+  $.postJSON( "https://api.graph.cool/simple/v1/ciw93mn3u12ag0171fuupvn01", `{"query": "mutation b {updateUser(destination :\\"${destination}\\", id:\\"${userid}\\") {id, destination}}"}`, function (data) {
+    console.log(data);
   })
 }
 function getDestinations() {
-  $.postJSON( "https://api.graph.cool/simple/v1/ciw93mn3u12ag0171fuupvn01", '{"query":"query {allUsers {id name destination{  name}}}"}', function (data) {
-    console.log(data)
+  var counter = 0;
+  $.postJSON( "https://api.graph.cool/simple/v1/ciw93mn3u12ag0171fuupvn01", '{"query":"query {allUsers {id name destination}}"}', function (data) {
+    console.log(data.data.allUsers)
     $(".people-list").empty();
     data.data.allUsers.forEach(function (user) {
-      console.log(user.destination.name, ownLocation)
-      if(user.destination != null && user.destination.name == ownLocation && UserIsInFriends(user.id) ){
-        console.log(user.name + " is going to " + user.destination.name)
+      if(user.id != userid && user.destination != null && user.destination == ownLocation && UserIsInFriends(user.id) ){
+        console.log(user.name + " is going to " + user.destination)
+        counter++;
         $(".people-list").append(`
           <label class="custom-control custom-checkbox">
             <input type="checkbox" class="custom-control-input">
@@ -146,10 +150,11 @@ function getDestinations() {
           `)
       }
     })
+    $(".going").text(counter + " going to " + ownLocation);
   })
 }
 function sendPing(userid, recipient){
-  $.postJSON( "https://api.graph.cool/simple/v1/ciw93mn3u12ag0171fuupvn01", 'mutation {createPing(message:"Hi! lets meet",sender:"'+userid+'", recipient:"'+recipient+'"){id}}', function (data) {
+  $.postJSON( "https://api.graph.cool/simple/v1/ciw93mn3u12ag0171fuupvn01", '{ "query" : "mutation {createPing(message:"Hi! lets meet",sender:"'+userid+'", recipient:"'+recipient+'"){id}"}', function (data) {
   })
 }
 var test;
@@ -163,7 +168,7 @@ function getPing(userid) {
 
 }
 function getLocationData(){
-  $.postJSON( "https://api.graph.cool/simple/v1/ciw93mn3u12ag0171fuupvn01", '{"query": "query {allUsers {id positions {  lat lon}}}"}', function (data) {
+  $.postJSON( "https://api.graph.cool/simple/v1/ciw93mn3u12ag0171fuupvn01", '{"query": "query {allUsers {id positions(orderBy: createdAt_DESC first: 1) {  lat lon}}}"}', function (data) {
 
     var users = data.data.allUsers;
     console.log(users)

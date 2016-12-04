@@ -13,7 +13,7 @@ function getLocation(callback) {
           showPosition(pos);
           callback();
         }, showError);
-
+        
     } else {
         x.innerHTML = "Geolocation is not supported by this browser.";
     }
@@ -152,17 +152,18 @@ function sendPing(userid, recipient){
   $.postJSON( "https://api.graph.cool/simple/v1/ciw93mn3u12ag0171fuupvn01", 'mutation {createPing(message:"Hi! lets meet",sender:"'+userid+'", recipient:"'+recipient+'"){id}}', function (data) {
   })
 }
+var test;
 function getPing(userid) {
-  $.postJSON( "https://api.graph.cool/simple/v1/ciw93mn3u12ag0171fuupvn01", `{"query": "query {allPings(filter: {recipient:'${userid}'}) {id message sender}}"}`  , function (data) {
-
-      data.allPings.forEach(function (ping) {
-        alert(ping.message)
-      })
+  console.log(`{"query": "query {allPings(filter: {recipient:"${userid}"}) {id message sender}}"}`);
+  $.postJSON( "https://api.graph.cool/simple/v1/ciw93mn3u12ag0171fuupvn01", `{ "query" : "query { allPings(filter: {recipient: \\"${userid}\\"}) { id message sender } }" }`, function (data) {
+    data.data.allPings.forEach(function (ping) {
+      alert(ping.message)
+    })
   })
 
 }
 function getLocationData(){
-  $.postJSON( "https://api.graph.cool/simple/v1/ciw93mn3u12ag0171fuupvn01", '{"query":"query {allUsers {id positions {  lat lon}}}"}', function (data) {
+  $.postJSON( "https://api.graph.cool/simple/v1/ciw93mn3u12ag0171fuupvn01", '{"query": "query {allUsers {id positions {  lat lon}}}"}', function (data) {
 
     var users = data.data.allUsers;
     console.log(users)
